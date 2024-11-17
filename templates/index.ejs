@@ -1,10 +1,72 @@
-<div id="webcam-container"></div>
-<p id="label" style="font-size: 3rem;"></p>
+
+<div class="container">
+    <div id="webcam-container"></div>
+    <p id="label" style="font-size: 3rem;"></p>
+    <div class="row">
+        <button class="start" onclick="isStop = false">START</button>
+        <button class="stop" onclick="isStop = true">STOP</button>
+    </div>
+</div>
+
+
 <script src="/script/tf.min.js"></script>
 <script src="/script/teachablemachine-image.min.js"></script>
+<style>
+    canvas {
+        width: 600px;
+        background-color: black;
+    }
+    body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        background-color: #f3f3f3;
+        .container {
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #fff;
+            box-shadow: 0 0 10px 2px #ccc;
+            border-radius: 8px;
+            .row {
+                display: flex;
+                align-items: center;
+                width: 100%;
+                gap: 10px;
+            }
+            .start {
+                background-color: #133E87;
+                border: none;
+                border-radius: 5px;
+                color: #fff;
+                width: 100%;
+                height: 40px;
+            }
+            
+            .stop {
+                background-color: #F09319;
+                border: none;
+                border-radius: 5px;
+                color: #fff;
+                width: 100%;
+                height: 40px;
+            }
+        }
 
+        @media only screen and (max-width:800px) {
+            canvas {
+                width: 100%;
+            }
+            
+        }
+    }
+</style>
 <script type="text/javascript">
-
+    let isStop = false
     const URL = "/";
     let model, webcam, maxPredictions;
     let label = document.getElementById("label")
@@ -20,10 +82,17 @@
         document.getElementById("webcam-container").appendChild(webcam.canvas);
     }
 
-    async function loop() {
+    async function loop() { 
         webcam.update();
         await predict();
         window.requestAnimationFrame(loop);
+    }
+
+    function sendMessage(data) {
+        fetch('/send?message=' + data)
+        .then(response => response.json())
+        .then(data => console.log('Message Sent: ' + data.message))
+        .catch(err => console.log('Error: ' + err))
     }
 
     async function predict() {
@@ -31,6 +100,9 @@
         for (let i = 0; i < maxPredictions; i++) {
             if(prediction[i].probability.toFixed(0) == 1){
                 label.innerHTML = prediction[i].className
+                if(i == 0) sendMessage("S");
+                else if(i == 1) sendMessage("M");
+                else if(i == 2) sendMessage("L");
             }
         }
     }
