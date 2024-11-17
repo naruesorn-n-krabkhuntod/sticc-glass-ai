@@ -1,0 +1,215 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Webcam Object Detection</title>
+        <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+        <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+        <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+
+        <style>
+            body {
+                overflow: hidden;
+            }
+
+            header {
+                z-index: 999;
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                background-color: #5e0114;
+                padding: 10px;
+                display: flex;
+                align-items: center;
+                gap: 15px;
+                position: sticky;
+                top: 0;
+                img {
+                    width: 64px;
+                    border-radius: 100%;
+                }
+                .title {
+                    font-size: 20px;
+                    color: #fff;
+                    .subtitle {
+                        font-size: 16px;
+                        color: #fffe;
+                    }
+                }
+            }
+            /* canvas {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100dvh;
+                z-index: 999;
+            } */
+            .bg {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100dvh;
+                background-color: #f5f5f5;
+                z-index: 1;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-direction: column;
+                .box {
+                    padding: 15px;
+                    border: 1px solid #ccc;
+                    border-radius: 5px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    flex-direction: column;
+                    background-color: #fff;
+                    gap: 15px;
+                    button {
+                        background-color: #3D3BF3;
+                        color: #fff;
+                        padding: 15px;
+                        border: none;
+                        border-radius: 5px;
+                        align-self: end;
+                    }
+                    canvas {
+                        height: 70dvh;
+                    }
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <img src="static/logo.png">
+            <span class="title">
+                วิทยาลัยการอาชีพสตึก
+                <br>
+                <span class="subtitle">ระบบคัดแยกผลไม้</span>
+            </span>
+        </header>
+
+        <h1>Real-Time Object Detection</h1>
+        <video id="webcam" autoplay muted playsinline></video>
+        <p id="size">0 %</p>
+        <p id="type">0 %</p>
+        <div class="bg">
+            <div class="box">
+                <canvas id="canvas"></canvas>
+                <button>Close</button>
+            </div>
+        </div>
+        
+        
+        
+        <script>
+            const video = document.getElementById('webcam');
+            const canvas = document.getElementById('canvas');
+            const size = document.getElementById('size');
+            const type = document.getElementById('type');
+            const ctx = canvas.getContext('2d');
+            let model2, webcam2, maxPredictions;
+
+
+            async function setupWebcam() {
+                return new Promise((resolve, reject) => {
+                    navigator.mediaDevices.getUserMedia({
+                        video: true
+                    }).then(stream => {
+                        video.srcObject = stream;
+                        video.addEventListener('loadeddata', () => resolve(), false);
+                    }).catch(err => reject(err));
+                });
+            }
+
+            async function detectObjects() {
+                const model = await cocoSsd.load();
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const detectFrame = async () => {
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    const predictions = await model.detect(video);
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    predictions.forEach(prediction => {
+                        const [x, y, width, height] = prediction.bbox;
+                        ctx.strokeStyle = (type.innerHTML == "BAD")?'red' : 'green';
+                        ctx.lineWidth = 5;
+                        ctx.strokeRect(x, y, width, height);
+                        ctx.font = '20px Arial';
+                        ctx.fillStyle = (type.innerHTML == "BAD")?'red' : 'green';
+                        ctx.fillText( "size =" +((100 / canvas.width) * width).toFixed(2).toString(), x, y > 10 ? y - 5 : 10);
+                        size.innerHTML = ((100 / canvas.width) * width).toFixed(2).toString() + "%";
+                    });
+                    requestAnimationFrame(detectFrame);
+                };
+
+
+                detectFrame();
+            }
+
+            async function predict() {
+                const prediction2 = await model2.predict(webcam2.canvas);
+                if(prediction2[0].probability.toFixed(0) == 1){
+                    type.innerHTML = "GOOD"
+                    sendMessage("S")
+                    setTimeout(() => {
+                        
+                    }, 500);
+                }
+                else if(prediction2[1].probability.toFixed(0) == 1){
+                    type.innerHTML = "BAD"
+                    sendMessage("M")
+                    setTimeout(() => {
+                        
+                    }, 500);
+                }
+                else {
+                    type.innerHTML = "Null"
+                    sendMessage("L")
+                }
+            }
+
+
+
+            function sendMessage(data) {
+                fetch('/send?message=' + data)
+                .then(response => response.json())
+                .then(data => console.log('Message Sent: ' + data.message))
+                .catch(err => console.log('Error: ' + err))
+            }
+
+            async function main() {
+                try {
+                    await setupWebcam();
+                    const modelURL = "/model.json";
+                    const metadataURL = "/metadata.json";
+                    model2 = await tmImage.load(modelURL, metadataURL);
+                    maxPredictions = model2.getTotalClasses();
+                    webcam2 = new tmImage.Webcam(200, 200, true);
+                    await webcam2.setup();
+                    await webcam2.play();
+                    window.requestAnimationFrame(loop);
+                    await detectObjects();
+                } catch (err) {
+                    console.error('Error accessing webcam:', err);
+                }
+            }
+            async function loop() {
+                webcam2.update();
+                await predict();
+                window.requestAnimationFrame(loop);
+            }
+
+            main();
+        </script>
+    </body>
+</html>
