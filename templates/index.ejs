@@ -100,9 +100,12 @@
         for (let i = 0; i < maxPredictions; i++) {
             if(prediction[i].probability.toFixed(0) == 1){
                 label.innerHTML = prediction[i].className
-                if(i == 0) sendMessage("S");
-                else if(i == 1) sendMessage("M");
-                else if(i == 2) sendMessage("L");
+                if(i == 0 || i == 1) sendMessage("S");
+                else if(i == 2) sendMessage("M");
+                else if(i == 3) sendMessage("L");
+                setTimeout(() => {
+                    
+                }, 100);
             }
         }
     }

@@ -3,7 +3,7 @@ const PORT = 3000;
 const express = require('express');
 const { SerialPort } = require('serialport');
 const path = require('path');
-const port = new SerialPort({ path: 'COM5', baudRate: 9600 });
+const port = new SerialPort({ path: 'COM4', baudRate: 9600 });
 const app = express();
 
 
